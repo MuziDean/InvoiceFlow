@@ -521,7 +521,7 @@ app.post('/api/invoices/', (req: Request, res: Response) => {
     // The user NEVER inputs invoice_number. Generated strictly server-side.
     const invoiceNumber = generateNextInvoiceNumber(issue_date);
     const createdAt = new Date().toISOString();
-    const paidAt = finalStatus === 'paid' ? createdAt : null;
+    const paidAt = finalStatus === 'paid' ? (req.body?.paid_at || createdAt) : null;
 
     const insertResult = db.prepare(`
       INSERT INTO invoices (
@@ -658,7 +658,9 @@ app.put('/api/invoices/:id/', (req: Request, res: Response) => {
     }
     const taxAmount = Math.round(((taxableAmount * taxRateNum) / 100) * 100) / 100;
     const total = Math.round((taxableAmount + taxAmount) * 100) / 100;
-    const paidAt = status === 'paid' ? (existing.paid_at || new Date().toISOString()) : null;
+    const paidAt = status === 'paid'
+      ? (req.body?.paid_at || (existing.status === 'paid' && existing.paid_at ? existing.paid_at : new Date().toISOString()))
+      : null;
 
     // Note: invoice_number is intentionally NEVER updated from req.body
     db.prepare(`
@@ -739,7 +741,7 @@ app.post('/api/invoices/:id/mark-paid/', (req: Request, res: Response) => {
     if (existing.status === 'void') {
       return res.status(400).json({ error: 'Voided invoices cannot be marked as paid.' });
     }
-    const paidAt = existing.paid_at || new Date().toISOString();
+    const paidAt = req.body?.paid_at || (existing.status === 'paid' && existing.paid_at ? existing.paid_at : new Date().toISOString());
     db.prepare("UPDATE invoices SET status = 'paid', paid_at = ? WHERE id = ?").run(paidAt, req.params.id);
     const updated = getHydratedInvoice(req.params.id);
     res.json({ message: 'Invoice marked as paid', invoice: updated });
@@ -787,6 +789,11 @@ app.get('/api/invoices/:id/receipt/', (req: Request, res: Response) => {
     }
     if (invoice.status !== 'paid') {
       return res.status(409).json({ error: 'A receipt is available only after the invoice is marked as paid.' });
+    }
+    if (!invoice.paid_at) {
+      const paidDate = new Date().toISOString();
+      db.prepare('UPDATE invoices SET paid_at = ? WHERE id = ?').run(paidDate, invoice.id);
+      invoice.paid_at = paidDate;
     }
     generateReceiptPdf(invoice, getSettings(), res);
   } catch (err: any) {

@@ -11,9 +11,11 @@ function formatAmount(amount: number, currency: string) {
 }
 
 function formatInvoiceDate(date: string) {
-  const parsed = new Date(`${date}T00:00:00Z`);
+  if (!date) return '';
+  const dateOnly = date.includes('T') ? date.split('T')[0] : date;
+  const parsed = new Date(`${dateOnly}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return date;
-  return parsed.toLocaleDateString('en-ZW', {
+  return parsed.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -103,6 +105,13 @@ export function generateInvoicePdf(invoice: Invoice, settings: BusinessSettings,
     .fillColor(secondaryColor)
     .text(`Issue Date: ${formatInvoiceDate(invoice.issue_date)}`, rightColX, headerY + 65, { align: 'right', width: 200 })
     .text(`Due Date: ${formatInvoiceDate(invoice.due_date)}`, rightColX, headerY + 80, { align: 'right', width: 200 });
+
+  if (invoice.status === 'paid') {
+    const paidDate = invoice.paid_at
+      ? formatInvoiceDate(invoice.paid_at)
+      : formatInvoiceDate(invoice.created_at || new Date().toISOString());
+    doc.text(`Date Paid: ${paidDate}`, rightColX, headerY + 95, { align: 'right', width: 200 });
+  }
 
   // Divider Line
   const dividerY = 160 + headerOffset;
@@ -325,7 +334,8 @@ export function generateInvoicePdf(invoice: Invoice, settings: BusinessSettings,
 
 export function generateReceiptPdf(invoice: Invoice, settings: BusinessSettings, res: Response) {
   const doc = new PDFDocument({ margin: 45, size: 'A4' });
-  const rightColX = 350;
+  const rightColX = 300;
+  const rightColWidth = 250;
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
@@ -365,24 +375,45 @@ export function generateReceiptPdf(invoice: Invoice, settings: BusinessSettings,
     doc.text(`ZIMRA VAT Registration No: ${settings.vat_number}`, 45, doc.y + 2, { width: 270 });
   }
 
+  // Right column: Receipt Header
   doc
-    .fontSize(22)
+    .fontSize(15)
     .font('Helvetica-Bold')
     .fillColor(primaryColor)
-    .text('PAYMENT RECEIPT', rightColX, headerY, { align: 'right', width: 200 })
-    .fontSize(11)
+    .text('PAYMENT RECEIPT', rightColX, headerY, {
+      align: 'right',
+      width: rightColWidth,
+      lineBreak: false,
+    });
+
+  doc
+    .fontSize(12)
+    .font('Helvetica-Bold')
     .fillColor(accentColor)
-    .text(`RCPT-${invoice.invoice_number}`, rightColX, headerY + 30, { align: 'right', width: 200 })
+    .text(`RCPT-${invoice.invoice_number}`, rightColX, headerY + 22, {
+      align: 'right',
+      width: rightColWidth,
+      lineBreak: false,
+    });
+
+  const paidDate = invoice.paid_at
+    ? formatInvoiceDate(invoice.paid_at)
+    : formatInvoiceDate(invoice.created_at || new Date().toISOString());
+
+  doc
     .fontSize(9)
     .font('Helvetica')
     .fillColor(secondaryColor)
-    .text(`Invoice: ${invoice.invoice_number}`, rightColX, headerY + 50, { align: 'right', width: 200 })
-    .text(
-      `Date paid: ${invoice.paid_at ? formatInvoiceDate(invoice.paid_at.slice(0, 10)) : 'Not recorded'}`,
-      rightColX,
-      headerY + 65,
-      { align: 'right', width: 200 }
-    );
+    .text(`Invoice: ${invoice.invoice_number}`, rightColX, headerY + 42, {
+      align: 'right',
+      width: rightColWidth,
+      lineBreak: false,
+    })
+    .text(`Date paid: ${paidDate}`, rightColX, headerY + 56, {
+      align: 'right',
+      width: rightColWidth,
+      lineBreak: false,
+    });
 
   const dividerY = headerY + 98;
   doc
@@ -414,14 +445,14 @@ export function generateReceiptPdf(invoice: Invoice, settings: BusinessSettings,
     .fontSize(9)
     .font('Helvetica-Bold')
     .fillColor(secondaryColor)
-    .text('PAYMENT STATUS:', rightColX, billToY, { align: 'right', width: 200 })
+    .text('PAYMENT STATUS:', rightColX, billToY, { align: 'right', width: rightColWidth })
     .fontSize(10)
     .fillColor(accentColor)
-    .text('PAID IN FULL', rightColX, billToY + 14, { align: 'right', width: 200 })
+    .text('PAID IN FULL', rightColX, billToY + 14, { align: 'right', width: rightColWidth })
     .fontSize(9)
     .font('Helvetica')
     .fillColor(secondaryColor)
-    .text(`Currency: ${invoice.currency}`, rightColX, billToY + 30, { align: 'right', width: 200 });
+    .text(`Currency: ${invoice.currency}`, rightColX, billToY + 30, { align: 'right', width: rightColWidth });
 
   const tableTop = dividerY + 105;
   doc

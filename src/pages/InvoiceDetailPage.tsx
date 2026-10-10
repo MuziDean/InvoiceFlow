@@ -292,10 +292,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               <span className="text-slate-500">Currency:</span>
               <span className="font-semibold text-slate-900">{invoice.currency}</span>
             </div>
-            {invoice.paid_at && (
+            {(invoice.status === 'paid' || invoice.paid_at) && (
               <div className="flex justify-between sm:justify-end gap-4">
                 <span className="text-slate-500">Paid Date:</span>
-                <span className="font-semibold text-slate-900">{formatDate(invoice.paid_at)}</span>
+                <span className="font-semibold text-emerald-700">{formatDate(invoice.paid_at || invoice.created_at)}</span>
               </div>
             )}
             <div className="flex justify-between sm:justify-end gap-4">

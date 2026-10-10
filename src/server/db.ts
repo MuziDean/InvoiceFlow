@@ -166,6 +166,7 @@ function initializeDatabase(database: DatabaseSync) {
   if (!invoiceColumns.some((column) => column.name === 'paid_at')) {
     database.exec('ALTER TABLE invoices ADD COLUMN paid_at TEXT');
   }
+  database.exec("UPDATE invoices SET paid_at = COALESCE(created_at, datetime('now')) WHERE status = 'paid' AND (paid_at IS NULL OR paid_at = '')");
 }
 
 initializeDatabase(baseDatabase);
