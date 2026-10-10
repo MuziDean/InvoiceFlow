@@ -1,0 +1,6 @@
+{
+  "name": "InvoiceFlow",
+  "description": "Professional invoice generator with automatic, collision-free sequential invoice numbering.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
