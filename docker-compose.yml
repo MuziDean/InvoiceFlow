@@ -1,0 +1,25 @@
+services:
+  invoiceflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: invoiceflow
+    restart: unless-stopped
+    ports:
+      # Maps VPS port 3005 (or custom PORT from .env) to container internal port 3000
+      - "${PORT:-3005}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - APP_URL=${APP_URL:-http://89.116.26.24:3005}
+      - INVOICEFLOW_DB_PATH=/app/data/invoiceflow.sqlite
+      - INVOICEFLOW_AUTH_PATH=/app/data/invoiceflow-auth.sqlite
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      # Persists SQLite databases (settings, invoices, clients, auth) across restarts/rebuilds
+      - invoiceflow_data:/app/data
+
+volumes:
+  invoiceflow_data:
+    name: invoiceflow_data

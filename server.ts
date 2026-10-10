@@ -43,7 +43,7 @@ function readSessionToken(req: Request) {
 }
 
 function setSessionCookie(res: Response, token: string) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  const secure = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${sessionCookieName}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${secure}`);
 }
 
