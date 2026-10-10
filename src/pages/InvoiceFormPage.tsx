@@ -51,6 +51,7 @@ export const InvoiceFormPage: React.FC<InvoiceFormPageProps> = ({
   const [status, setStatus] = useState<'draft' | 'sent' | 'paid'>('draft');
   const [currency, setCurrency] = useState('USD');
   const [taxRate, setTaxRate] = useState(15.5);
+  const [applyVat, setApplyVat] = useState(false);
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState(0);
   const [notes, setNotes] = useState('');
@@ -81,6 +82,7 @@ export const InvoiceFormPage: React.FC<InvoiceFormPageProps> = ({
         if (!invoiceToEdit) {
           setCurrency(settingsRes.default_currency || 'USD');
           setTaxRate(settingsRes.vat_number ? (settingsRes.default_tax_rate ?? 15.5) : 0);
+          setApplyVat(Boolean(settingsRes.vat_number));
           
           // Calculate default due date based on payment terms
           const days = settingsRes.default_payment_terms_days || 14;
@@ -109,6 +111,7 @@ export const InvoiceFormPage: React.FC<InvoiceFormPageProps> = ({
       setStatus(invoiceToEdit.status as any);
       setCurrency(invoiceToEdit.currency);
       setTaxRate(invoiceToEdit.tax_rate);
+      setApplyVat(invoiceToEdit.tax_rate > 0);
       setDiscountType(invoiceToEdit.discount_type);
       setDiscountValue(invoiceToEdit.discount_value);
       setNotes(invoiceToEdit.notes || '');
@@ -134,8 +137,16 @@ export const InvoiceFormPage: React.FC<InvoiceFormPageProps> = ({
     })),
     discountType,
     discountValue,
-    taxRate
+    applyVat ? taxRate : 0
   );
+
+  const handleApplyVatChange = (checked: boolean) => {
+    setApplyVat(checked);
+    // If ticking VAT but no usable rate is set, fall back to the Settings default
+    if (checked && !(Number(taxRate) > 0)) {
+      setTaxRate(settings?.default_tax_rate ?? 15.5);
+    }
+  };
 
   const handleAddItem = () => {
     setItems((prev) => [...prev, { description: '', quantity: 1, unit_price: 0 }]);
@@ -214,7 +225,7 @@ export const InvoiceFormPage: React.FC<InvoiceFormPageProps> = ({
         due_date: dueDate,
         status,
         currency,
-        tax_rate: Number(taxRate) || 0,
+        tax_rate: applyVat ? Number(taxRate) || 0 : 0,
         discount_type: discountType,
         discount_value: Number(discountValue) || 0,
         notes,
@@ -656,27 +667,41 @@ export const InvoiceFormPage: React.FC<InvoiceFormPageProps> = ({
               </span>
             </div>
 
-            {/* Tax Row */}
+            {/* VAT Tick Box & Rate Row */}
             <div className="flex items-center justify-between text-sm gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-600">VAT Rate (%):</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="any"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(Number(e.target.value))}
-                  disabled={!settings?.vat_number}
-                  className="w-16 px-1.5 py-0.5 text-xs border border-slate-300 rounded text-right font-mono"
-                />
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={applyVat}
+                    disabled={!settings?.vat_number}
+                    onChange={(e) => handleApplyVatChange(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <span className={`font-medium ${settings?.vat_number ? 'text-slate-600' : 'text-slate-400'}`}>
+                    Apply VAT
+                  </span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-slate-600 ${applyVat ? '' : 'opacity-50'}`}>Rate (%):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="any"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(Number(e.target.value))}
+                    disabled={!applyVat || !settings?.vat_number}
+                    className="w-16 px-1.5 py-0.5 text-xs border border-slate-300 rounded text-right font-mono disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  />
+                </div>
               </div>
               <span className="font-mono font-semibold text-slate-900">
                 +{formatCurrency(totals.taxAmount, currency)}
               </span>
             </div>
             {!settings?.vat_number && (
-              <p className="text-[11px] text-slate-500">Add the ZIMRA VAT registration number in Settings to charge VAT.</p>
+              <p className="text-[11px] text-slate-500">Add the ZIMRA VAT registration number in Settings to enable VAT on this invoice.</p>
             )}
 
             {/* Final Grand Total */}
